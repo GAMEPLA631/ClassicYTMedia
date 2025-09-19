@@ -247,6 +247,9 @@
         const volumeIcon = volumeBtn.querySelector('i');
         const volumeSlider = document.getElementById('volumeSlider');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        // In-memory array to store uploaded videos and their object URLs
+        const uploadedVideos = [];
 
         // Function to show a custom message box
         function showMessage(text) {
@@ -264,15 +267,14 @@
         // Function to render the list of videos
         function renderVideoList() {
             videoList.innerHTML = '';
-            const videos = JSON.parse(localStorage.getItem('videos') || '[]');
             
-            if (videos.length > 0) {
+            if (uploadedVideos.length > 0) {
                 videoListCard.classList.remove('hidden');
             } else {
                 videoListCard.classList.add('hidden');
             }
 
-            videos.forEach(video => {
+            uploadedVideos.forEach(video => {
                 const itemDiv = document.createElement('div');
                 itemDiv.classList.add('video-list-item');
                 
@@ -297,55 +299,47 @@
 
         // Function to load a video from the list
         function loadVideo(videoId) {
-            const videos = JSON.parse(localStorage.getItem('videos') || '[]');
-            const video = videos.find(v => v.id === videoId);
+            const video = uploadedVideos.find(v => v.id === videoId);
             
             if (video) {
-                // Use the data URL directly from local storage
+                // Use the object URL directly from the in-memory array
                 videoPlayer.src = video.dataUrl;
                 fileNameSpan.textContent = video.name;
                 videoContainerWrapper.classList.remove('hidden');
                 videoInfoCard.classList.remove('hidden');
                 getSimulatedVideoInfo();
                 
-                // Save the currently playing video ID to local storage
-                localStorage.setItem('currentVideoId', videoId);
-
                 showMessage(`Načítavam video: ${video.name}`);
             }
         }
 
         // Function to delete a video from the list
         function deleteVideo(videoId) {
-            let videos = JSON.parse(localStorage.getItem('videos') || '[]');
-            const videoToDelete = videos.find(v => v.id === videoId);
-            const currentVideoId = localStorage.getItem('currentVideoId');
+            const index = uploadedVideos.findIndex(v => v.id === videoId);
 
-            if (currentVideoId && parseInt(currentVideoId) === videoId) {
-                videoPlayer.pause();
-                videoPlayer.src = '';
-                videoContainerWrapper.classList.add('hidden');
-                localStorage.removeItem('currentVideoId'); // Remove the ID if the video is deleted
+            if (index !== -1) {
+                // If the video is currently playing, pause it and clear the source
+                if (videoPlayer.src === uploadedVideos[index].dataUrl) {
+                    videoPlayer.pause();
+                    videoPlayer.src = '';
+                    videoContainerWrapper.classList.add('hidden');
+                }
+                
+                // Revoke the object URL to free up memory
+                URL.revokeObjectURL(uploadedVideos[index].dataUrl);
+
+                // Remove the video from the in-memory array
+                uploadedVideos.splice(index, 1);
+
+                renderVideoList();
+                showMessage(`Video bolo úspešne vymazané.`);
             }
-            
-            videos = videos.filter(v => v.id !== videoId);
-            localStorage.setItem('videos', JSON.stringify(videos));
-            renderVideoList();
-            showMessage(`Video bolo úspešne vymazané.`);
         }
         
         // Handle rules modal
         document.addEventListener('DOMContentLoaded', () => {
-            // Check if rules have been accepted before
             const rulesAccepted = localStorage.getItem('rulesAccepted');
-            if (rulesAccepted) {
-                // Po súhlase načítame zoznam videí a posledné prehrané video
-                renderVideoList();
-                const lastPlayedVideoId = localStorage.getItem('currentVideoId');
-                if (lastPlayedVideoId) {
-                    loadVideo(parseInt(lastPlayedVideoId));
-                }
-            } else {
+            if (!rulesAccepted) {
                 rulesModal.classList.remove('hidden');
             }
         });
@@ -353,12 +347,7 @@
         agreeBtn.addEventListener('click', () => {
             localStorage.setItem('rulesAccepted', 'true');
             rulesModal.classList.add('hidden');
-            // Po súhlase načítame zoznam videí a posledné prehrané video
-            renderVideoList();
-            const lastPlayedVideoId = localStorage.getItem('currentVideoId');
-            if (lastPlayedVideoId) {
-                loadVideo(parseInt(lastPlayedVideoId));
-            }
+            showMessage('Pravidlá prijaté. Nahrané videá nebudú trvalo uložené.');
         });
 
         disagreeBtn.addEventListener('click', () => {
@@ -369,36 +358,20 @@
         videoFile.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                // Use FileReader to read the file as a data URL (Base64)
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const videoDataUrl = e.target.result;
-                    let videos = JSON.parse(localStorage.getItem('videos') || '[]');
-                    
-                    const newVideo = {
-                        id: Date.now(), // Use a timestamp as a simple unique ID
-                        name: file.name,
-                        dataUrl: videoDataUrl // Store the Base64 data URL
-                    };
-                    
-                    try {
-                        videos.push(newVideo);
-                        localStorage.setItem('videos', JSON.stringify(videos));
-                        
-                        loadVideo(newVideo.id);
-                        renderVideoList();
-                        showMessage(`Video ${file.name} bolo úspešne nahrané.`);
-                    } catch (e) {
-                        // Handle potential storage limit errors
-                        if (e.name === 'QuotaExceededError') {
-                            showMessage('Video sa nepodarilo nahrať. Je príliš veľké pre úložisko prehliadača.');
-                        } else {
-                            showMessage('Nastala neočakávaná chyba pri nahrávaní videa.');
-                        }
-                        console.error('Nahrávanie zlyhalo:', e);
-                    }
+                // Create a temporary object URL for the file
+                const videoObjectUrl = URL.createObjectURL(file);
+                
+                const newVideo = {
+                    id: Date.now(), // Use a timestamp as a simple unique ID
+                    name: file.name,
+                    dataUrl: videoObjectUrl // Store the temporary object URL
                 };
-                reader.readAsDataURL(file);
+                
+                uploadedVideos.push(newVideo);
+                
+                loadVideo(newVideo.id);
+                renderVideoList();
+                showMessage(`Video ${file.name} bolo úspešne nahrané.`);
             }
         });
 
@@ -531,6 +504,7 @@
     </script>
 </body>
 </html>
+
 
 
 
