@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClossingTube</title>
+    <link rel="icon" type="image/x-icon" href="https://placehold.co/32x32/FF0000/FFF?text=CT">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            background-color: #1E1E1E;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        input, button {
+            border-radius: 0.5rem;
+        }
+        .message-box {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2D2D2D;
+            color: #E0E0E0;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .video-container {
+            position: relative;
+            background-color: #000;
+        }
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .video-container:hover .video-controls {
+            opacity: 1;
+        }
+        .timeline {
+            flex: 1;
+            height: 8px;
+            background-color: #555;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 1rem;
+        }
+        .timeline-progress {
+            height: 100%;
+            background-color: #FF0000;
+            border-radius: 4px;
+        }
+        .video-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: #2D2D2D;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .video-list-item:hover {
+            background-color: #3d3d3d;
+        }
+        .video-list-item button {
+            background-color: transparent;
+            border: none;
+            color: #E0E0E0;
+            font-size: 1.1rem;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .video-list-item button:hover {
+            opacity: 1;
+            color: #FF0000;
+        }
+    </style>
+</head>
+<body class="p-6 flex items-center justify-center min-h-screen">
+    <div class="container mx-auto p-6 space-y-8">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-white mb-2">ClossingTube</h1>
+            <p class="text-lg text-gray-400">Nahraj video zo svojho zariadenia a prehrávaj ho lokálne.</p>
+        </div>
+
+        <div class="card p-6 w-full">
+            <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+                <label for="videoFile" class="bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg cursor-pointer hover:bg-purple-700 transition-colors duration-200">
+                    Nahrať video
+                </label>
+                <input id="videoFile" type="file" accept="video/*" class="hidden">
+            </div>
+        </div>
+        
+        <div id="videoContainerWrapper" class="card p-6 w-full hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Prehrávač videa</h2>
+            <div id="videoContainer" class="video-container relative rounded-lg overflow-hidden">
+                <video id="videoPlayer" class="w-full"></video>
+                <div class="video-controls text-white">
+                    <button id="playPauseBtn" class="bg-transparent text-lg p-2 rounded-full hover:bg-gray-700"><i class="fas fa-play"></i></button>
+                    <div class="flex items-center space-x-1 ml-2">
+                        <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                    </div>
+                    <div class="timeline" id="timeline">
+                        <div class="timeline-progress" id="timelineProgress"></div>
+                    </div>
+                    <button id="volumeBtn" class="bg-transparent text-lg p-2 rounded-full hover:bg-gray-700"><i class="fas fa-volume-up"></i></button>
+                    <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" class="w-20 mx-2">
+                    <button id="fullscreenBtn" class="bg-transparent text-lg p-2 rounded-full hover:bg-gray-700 ml-auto"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+            <div class="space-y-4 text-gray-300 mt-4">
+                <div>
+                    <span class="font-bold text-white">Názov súboru:</span> <span id="fileName"></span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="videoInfoCard" class="card p-6 w-full hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Informácie o videu</h2>
+            <div class="space-y-4 text-gray-300">
+                <div>
+                    <span class="font-bold text-white">Hudobná skladba:</span> <span id="songTitle">N/A</span>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Umelec:</span> <span id="artists">N/A</span>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Album:</span> <span id="album">N/A</span>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Licencia:</span> <span id="licenseInfo">N/A</span>
+                </div>
+                <div id="copyrightStatus" class="p-4 rounded-lg font-bold text-center mt-4"></div>
+            </div>
+        </div>
+
+        <div id="videoListCard" class="card p-6 w-full hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Nahraté videá</h2>
+            <div id="videoList" class="space-y-2">
+                <!-- Video items will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+    
+    <div id="messageBox" class="message-box"></div>
+
+    <script>
+        const videoFile = document.getElementById('videoFile');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoContainerWrapper = document.getElementById('videoContainerWrapper');
+        const fileNameSpan = document.getElementById('fileName');
+        const videoInfoCard = document.getElementById('videoInfoCard');
+        const songTitleSpan = document.getElementById('songTitle');
+        const artistsSpan = document.getElementById('artists');
+        const albumSpan = document.getElementById('album');
+        const licenseInfoSpan = document.getElementById('licenseInfo');
+        const copyrightStatusDiv = document.getElementById('copyrightStatus');
+        const messageBox = document.getElementById('messageBox');
+        const videoListCard = document.getElementById('videoListCard');
+        const videoList = document.getElementById('videoList');
+
+        // Video Player Controls
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playPauseIcon = playPauseBtn.querySelector('i');
+        const timeline = document.getElementById('timeline');
+        const timelineProgress = document.getElementById('timelineProgress');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationSpan = document.getElementById('duration');
+        const volumeBtn = document.getElementById('volumeBtn');
+        const volumeIcon = volumeBtn.querySelector('i');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        // Function to show a custom message box
+        function showMessage(text) {
+            messageBox.textContent = text;
+            messageBox.style.display = 'block';
+            messageBox.style.opacity = '1';
+            setTimeout(() => {
+                messageBox.style.opacity = '0';
+                setTimeout(() => {
+                    messageBox.style.display = 'none';
+                }, 500);
+            }, 3000);
+        }
+
+        // Function to render the list of videos
+        function renderVideoList() {
+            videoList.innerHTML = '';
+            const videos = JSON.parse(localStorage.getItem('videos') || '[]');
+            
+            if (videos.length > 0) {
+                videoListCard.classList.remove('hidden');
+            } else {
+                videoListCard.classList.add('hidden');
+            }
+
+            videos.forEach(video => {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('video-list-item');
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = video.name;
+                titleSpan.classList.add('flex-1', 'truncate');
+                titleSpan.style.cursor = 'pointer';
+                titleSpan.onclick = () => loadVideo(video.id);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteVideo(video.id);
+                };
+
+                itemDiv.appendChild(titleSpan);
+                itemDiv.appendChild(deleteBtn);
+                videoList.appendChild(itemDiv);
+            });
+        }
+
+        // Function to load a video from the list
+        function loadVideo(videoId) {
+            const videos = JSON.parse(localStorage.getItem('videos') || '[]');
+            const video = videos.find(v => v.id === videoId);
+            
+            if (video) {
+                videoPlayer.src = video.url;
+                fileNameSpan.textContent = video.name;
+                videoContainerWrapper.classList.remove('hidden');
+                videoInfoCard.classList.remove('hidden');
+                getSimulatedVideoInfo(); // Regenerate simulated info for the loaded video
+                showMessage(`Načítavam video: ${video.name}`);
+            }
+        }
+
+        // Function to delete a video from the list
+        function deleteVideo(videoId) {
+            let videos = JSON.parse(localStorage.getItem('videos') || '[]');
+            const videoToDelete = videos.find(v => v.id === videoId);
+
+            if (videoPlayer.src === videoToDelete.url) {
+                videoPlayer.pause();
+                videoPlayer.src = '';
+                videoContainerWrapper.classList.add('hidden');
+            }
+            
+            videos = videos.filter(v => v.id !== videoId);
+            localStorage.setItem('videos', JSON.stringify(videos));
+            renderVideoList();
+            showMessage(`Video bolo úspešne vymazané.`);
+        }
+        
+        // Load videos from local storage on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderVideoList();
+        });
+
+        videoFile.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const videoUrl = URL.createObjectURL(file);
+                let videos = JSON.parse(localStorage.getItem('videos') || '[]');
+                
+                const newVideo = {
+                    id: Date.now(), // Use a timestamp as a simple unique ID
+                    name: file.name,
+                    url: videoUrl
+                };
+                
+                videos.push(newVideo);
+                localStorage.setItem('videos', JSON.stringify(videos));
+                
+                loadVideo(newVideo.id);
+                renderVideoList();
+                showMessage(`Video ${file.name} bolo úspešne nahrané.`);
+            }
+        });
+
+        // Function to randomly generate video info
+        function getSimulatedVideoInfo() {
+            const mockArtists = [
+                'Kali', 'Separ', 'Rytmus', 'Ego', 'Majk Spirit', 'Pil C', 'Sima', 'Dara Rolins', 
+                'Lucie Bílá', 'Karel Gott', 'Chinaski', 'Kabát', 'Rybičky 48', 'Miro Žbirka', 
+                'Richard Müller', 'Desmod', 'IMT Smile', 'Peter Nagy', 'Kristína', 'Celeste Buckingham', 
+                'GrooveVortex'
+            ];
+            
+            const mockData = [
+                {
+                    title: 'Náhodná skladba s copyright strike',
+                    album: 'Fiktívny album 1',
+                    license: 'Copyright Strike: Toto je chránené autorským právom. Použitie môže viesť k zablokovaniu videa a autorskému nároku.',
+                    status: 'strike'
+                },
+                {
+                    title: 'Herné video - Fiktívna hra',
+                    album: 'Herný soundtrack',
+                    license: 'Herná licencia: Obsah môže byť použitý na komerčné účely s riadnym uvedením zdroja a za podmienok fair use. Vyžaduje sa iba Copyright Claim, video zostane dostupné.',
+                    status: 'claim'
+                },
+                {
+                    title: 'Relaxačné zvuky prírody',
+                    album: 'Zvuky prírody',
+                    license: 'Public Domain: Obsah je voľne dostupný na akékoľvek použitie. Neexistujú žiadne autorské práva.',
+                    status: 'free'
+                },
+                {
+                    title: 'Fiktívna skladba s licenciou Creative Commons',
+                    album: 'CC Licencia Album',
+                    license: 'Creative Commons (CC BY-SA): Obsah je voľne dostupný na použitie, ale vyžaduje uvedenie zdroja a zdieľanie pod rovnakou licenciou.',
+                    status: 'claim'
+                }
+            ];
+            
+            const randomArtist = mockArtists[Math.floor(Math.random() * mockArtists.length)];
+            const videoInfo = mockData[Math.floor(Math.random() * mockData.length)];
+
+            songTitleSpan.textContent = videoInfo.title;
+            artistsSpan.textContent = randomArtist;
+            albumSpan.textContent = videoInfo.album;
+            licenseInfoSpan.textContent = videoInfo.license;
+            
+            copyrightStatusDiv.textContent = '';
+            copyrightStatusDiv.classList.remove('bg-red-700', 'bg-yellow-600', 'bg-green-700');
+
+            if (videoInfo.status === 'strike') {
+                copyrightStatusDiv.textContent = 'Copyright Strike! Video môže byť zablokované.';
+                copyrightStatusDiv.classList.add('bg-red-700');
+            } else if (videoInfo.status === 'claim') {
+                copyrightStatusDiv.textContent = 'Copyright Claim! Video je dostupné, ale autor dostane príjmy.';
+                copyrightStatusDiv.classList.add('bg-yellow-600');
+            } else {
+                copyrightStatusDiv.textContent = 'Žiadne autorské práva. Použitie je voľné.';
+                copyrightStatusDiv.classList.add('bg-green-700');
+            }
+        }
+
+        // Video Player Logic
+        playPauseBtn.addEventListener('click', () => {
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+                playPauseIcon.classList.remove('fa-play');
+                playPauseIcon.classList.add('fa-pause');
+            } else {
+                videoPlayer.pause();
+                playPauseIcon.classList.remove('fa-pause');
+                playPauseIcon.classList.add('fa-play');
+            }
+        });
+
+        videoPlayer.addEventListener('timeupdate', () => {
+            const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+            timelineProgress.style.width = `${progress}%`;
+            currentTimeSpan.textContent = formatTime(videoPlayer.currentTime);
+        });
+
+        videoPlayer.addEventListener('loadedmetadata', () => {
+            durationSpan.textContent = formatTime(videoPlayer.duration);
+        });
+
+        timeline.addEventListener('click', (event) => {
+            const timelineRect = timeline.getBoundingClientRect();
+            const clickPosition = event.clientX - timelineRect.left;
+            const clickRatio = clickPosition / timelineRect.width;
+            videoPlayer.currentTime = videoPlayer.duration * clickRatio;
+        });
+
+        volumeBtn.addEventListener('click', () => {
+            if (videoPlayer.muted) {
+                videoPlayer.muted = false;
+                volumeIcon.classList.remove('fa-volume-mute');
+                volumeIcon.classList.add('fa-volume-up');
+                volumeSlider.value = videoPlayer.volume;
+            } else {
+                videoPlayer.muted = true;
+                volumeIcon.classList.remove('fa-volume-up');
+                volumeIcon.classList.add('fa-volume-mute');
+                volumeSlider.value = 0;
+            }
+        });
+
+        volumeSlider.addEventListener('input', () => {
+            videoPlayer.volume = volumeSlider.value;
+            videoPlayer.muted = videoPlayer.volume === 0;
+            if (videoPlayer.muted) {
+                volumeIcon.classList.remove('fa-volume-up');
+                volumeIcon.classList.add('fa-volume-mute');
+            } else {
+                volumeIcon.classList.remove('fa-volume-mute');
+                volumeIcon.classList.add('fa-volume-up');
+            }
+        });
+
+        // Handle fullscreen button click
+        fullscreenBtn.addEventListener('click', () => {
+             showMessage('Režim celej obrazovky nie je podporovaný v tomto prostredí.');
+        });
+
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+    </script>
+</body>
+</html>
