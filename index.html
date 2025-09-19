@@ -381,12 +381,22 @@
                         dataUrl: videoDataUrl // Store the Base64 data URL
                     };
                     
-                    videos.push(newVideo);
-                    localStorage.setItem('videos', JSON.stringify(videos));
-                    
-                    loadVideo(newVideo.id);
-                    renderVideoList();
-                    showMessage(`Video ${file.name} bolo úspešne nahrané.`);
+                    try {
+                        videos.push(newVideo);
+                        localStorage.setItem('videos', JSON.stringify(videos));
+                        
+                        loadVideo(newVideo.id);
+                        renderVideoList();
+                        showMessage(`Video ${file.name} bolo úspešne nahrané.`);
+                    } catch (e) {
+                        // Handle potential storage limit errors
+                        if (e.name === 'QuotaExceededError') {
+                            showMessage('Video sa nepodarilo nahrať. Je príliš veľké pre úložisko prehliadača.');
+                        } else {
+                            showMessage('Nastala neočakávaná chyba pri nahrávaní videa.');
+                        }
+                        console.error('Nahrávanie zlyhalo:', e);
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -521,6 +531,7 @@
     </script>
 </body>
 </html>
+
 
 
 
