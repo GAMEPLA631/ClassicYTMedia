@@ -301,11 +301,12 @@
             const video = videos.find(v => v.id === videoId);
             
             if (video) {
-                videoPlayer.src = video.url;
+                // Use the data URL directly from local storage
+                videoPlayer.src = video.dataUrl;
                 fileNameSpan.textContent = video.name;
                 videoContainerWrapper.classList.remove('hidden');
                 videoInfoCard.classList.remove('hidden');
-                getSimulatedVideoInfo(); // Regenerate simulated info for the loaded video
+                getSimulatedVideoInfo();
                 
                 // Save the currently playing video ID to local storage
                 localStorage.setItem('currentVideoId', videoId);
@@ -335,10 +336,22 @@
         
         // Handle rules modal
         document.addEventListener('DOMContentLoaded', () => {
-            rulesModal.classList.remove('hidden');
+            // Check if rules have been accepted before
+            const rulesAccepted = localStorage.getItem('rulesAccepted');
+            if (rulesAccepted) {
+                // Po súhlase načítame zoznam videí a posledné prehrané video
+                renderVideoList();
+                const lastPlayedVideoId = localStorage.getItem('currentVideoId');
+                if (lastPlayedVideoId) {
+                    loadVideo(parseInt(lastPlayedVideoId));
+                }
+            } else {
+                rulesModal.classList.remove('hidden');
+            }
         });
 
         agreeBtn.addEventListener('click', () => {
+            localStorage.setItem('rulesAccepted', 'true');
             rulesModal.classList.add('hidden');
             // Po súhlase načítame zoznam videí a posledné prehrané video
             renderVideoList();
@@ -356,21 +369,26 @@
         videoFile.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                const videoUrl = URL.createObjectURL(file);
-                let videos = JSON.parse(localStorage.getItem('videos') || '[]');
-                
-                const newVideo = {
-                    id: Date.now(), // Use a timestamp as a simple unique ID
-                    name: file.name,
-                    url: videoUrl
+                // Use FileReader to read the file as a data URL (Base64)
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const videoDataUrl = e.target.result;
+                    let videos = JSON.parse(localStorage.getItem('videos') || '[]');
+                    
+                    const newVideo = {
+                        id: Date.now(), // Use a timestamp as a simple unique ID
+                        name: file.name,
+                        dataUrl: videoDataUrl // Store the Base64 data URL
+                    };
+                    
+                    videos.push(newVideo);
+                    localStorage.setItem('videos', JSON.stringify(videos));
+                    
+                    loadVideo(newVideo.id);
+                    renderVideoList();
+                    showMessage(`Video ${file.name} bolo úspešne nahrané.`);
                 };
-                
-                videos.push(newVideo);
-                localStorage.setItem('videos', JSON.stringify(videos));
-                
-                loadVideo(newVideo.id);
-                renderVideoList();
-                showMessage(`Video ${file.name} bolo úspešne nahrané.`);
+                reader.readAsDataURL(file);
             }
         });
 
@@ -503,5 +521,7 @@
     </script>
 </body>
 </html>
+
+
 
 
