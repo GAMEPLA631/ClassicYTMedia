@@ -306,6 +306,10 @@
                 videoContainerWrapper.classList.remove('hidden');
                 videoInfoCard.classList.remove('hidden');
                 getSimulatedVideoInfo(); // Regenerate simulated info for the loaded video
+                
+                // Save the currently playing video ID to local storage
+                localStorage.setItem('currentVideoId', videoId);
+
                 showMessage(`Načítavam video: ${video.name}`);
             }
         }
@@ -314,11 +318,13 @@
         function deleteVideo(videoId) {
             let videos = JSON.parse(localStorage.getItem('videos') || '[]');
             const videoToDelete = videos.find(v => v.id === videoId);
+            const currentVideoId = localStorage.getItem('currentVideoId');
 
-            if (videoPlayer.src === videoToDelete.url) {
+            if (currentVideoId && parseInt(currentVideoId) === videoId) {
                 videoPlayer.pause();
                 videoPlayer.src = '';
                 videoContainerWrapper.classList.add('hidden');
+                localStorage.removeItem('currentVideoId'); // Remove the ID if the video is deleted
             }
             
             videos = videos.filter(v => v.id !== videoId);
@@ -329,13 +335,17 @@
         
         // Handle rules modal
         document.addEventListener('DOMContentLoaded', () => {
-            // Zobraziť modálne okno vždy, bez ohľadu na predchádzajúci súhlas
             rulesModal.classList.remove('hidden');
         });
 
         agreeBtn.addEventListener('click', () => {
             rulesModal.classList.add('hidden');
+            // Po súhlase načítame zoznam videí a posledné prehrané video
             renderVideoList();
+            const lastPlayedVideoId = localStorage.getItem('currentVideoId');
+            if (lastPlayedVideoId) {
+                loadVideo(parseInt(lastPlayedVideoId));
+            }
         });
 
         disagreeBtn.addEventListener('click', () => {
@@ -493,4 +503,5 @@
     </script>
 </body>
 </html>
+
 
